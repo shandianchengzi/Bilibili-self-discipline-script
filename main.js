@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         b站自律脚本
 // @namespace    http://tampermonkey.net/
-// @version      0.5
-// @description  1.除了搜索、视频页、私信页、个人主页、专栏之外的任何页都会被重定向到搜索页；2.视频页去掉相关推荐，并且非自己的视频去掉评论。(使用时请打开“设置”-“通用”-“仅在顶层页面（框架）运行”，否则会加载次数过多)
+// @version      0.6
+// @description  1.除了搜索、视频页、私信页、个人主页、专栏之外的任何页都会被重定向到搜索页；2.视频页去掉相关推荐，并且非自己的视频去掉评论；3.新增配置项支持自行添加重定向的列表。(使用时请打开"设置"-"通用"-"仅在顶层页面（框架）运行"，否则会加载次数过多)
 // @author       shandianchengzi
 // @match        https://*.bilibili.com/*
 // @icon         https://cdn2.iconfinder.com/data/icons/project-management-24/48/62-1024.png
@@ -11,10 +11,13 @@
 // @grant        GM_setValue
 // ==/UserScript==
 
-var skips = {
-  2: ['message.bilibili.com', 'member.bilibili.com'], // 这些是个人消息管理的一些域名，我是UP主，所以需要查看这些，所以不禁用这些域名
-  3: ['opus', 'read'] // opus and read is 专栏
+var default_skips = {
+  // 默认的不重定向的网站的列表，可以在配置中添加或者删除
+  2: ['message.bilibili.com', 'member.bilibili.com', 'account.bilibili.com'], // 这些是个人消息管理的一些域名，我是UP主，所以需要查看这些，所以不禁用这些域名
+  3: ['opus', 'read'] // opus and read is 专栏不禁用
 };
+
+var skips = GM_getValue('skips', JSON.parse(JSON.stringify(default_skips)));
 
 var ad_class = ['vcd', 'ad-floor-cover', 'inside-wrp', 'activity_vote', 'pop-live-small-mode', 'ad-floor-exp'];
 
@@ -61,6 +64,61 @@ function saveSettings(newSettings) {
     GM_setValue('userSettings', newSettings);
 }
 
+// 新增函数：配置skip变量
+function configureSkips() {
+    const configWindow = document.createElement('div');
+    configWindow.style.position = 'fixed';
+    configWindow.style.top = '50%';
+    configWindow.style.left = '50%';
+    configWindow.style.transform = 'translate(-50%, -50%)';
+    configWindow.style.backgroundColor = '#f9f9f9';
+    configWindow.style.padding = '20px';
+    configWindow.style.border = '1px solid #ddd';
+    configWindow.style.borderRadius = '8px';
+    configWindow.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.3)';
+    configWindow.style.zIndex = '10000';
+    configWindow.style.width = '400px';
+    configWindow.style.fontFamily = 'Arial, sans-serif';
+
+    configWindow.innerHTML = `
+        <h3 style="margin-top: 0; font-size: 18px; color: #333;">配置跳过规则</h3>
+        <p style="font-size: 12px; color: #666; margin-top: 0;">
+            键表示URL分割后的索引位置，值表示要跳过的域名或路径片段<br>
+            例如：索引2表示URL分割后的第三部分(从0开始)
+        </p>
+        <textarea id="skipConfig" style="width: 100%; height: 200px; margin: 10px 0; font-family: monospace;">${JSON.stringify(skips, null, 2)}</textarea>
+        <div style="text-align: right; margin-top: 20px;">
+            <button id="saveSkips" style="padding: 5px 10px; margin-right: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+            <button id="cancelSkips" style="padding: 5px 10px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+        </div>
+    `;
+
+    document.body.appendChild(configWindow);
+
+    document.getElementById('saveSkips').addEventListener('click', () => {
+        try {
+            const newSkips = JSON.parse(document.getElementById('skipConfig').value);
+            GM_setValue('skips', newSkips);
+            skips = newSkips;
+            document.body.removeChild(configWindow);
+            Toast('跳过规则已保存！刷新页面以应用更改。', 1500);
+        } catch (e) {
+            Toast('保存失败：JSON格式错误', 2000);
+        }
+    });
+
+    document.getElementById('cancelSkips').addEventListener('click', () => {
+        document.body.removeChild(configWindow);
+    });
+}
+
+// 新增函数：恢复默认skip设置
+function resetSkips() {
+    GM_setValue('skips', JSON.parse(JSON.stringify(default_skips)));
+    skips = JSON.parse(JSON.stringify(default_skips));
+    Toast('已恢复默认跳过规则！刷新页面以应用更改。', 1500);
+}
+
 function configureSettings() {
     const configWindow = document.createElement('div');
     configWindow.style.position = 'fixed';
@@ -105,7 +163,10 @@ function configureSettings() {
     });
 }
 
+// 注册菜单命令
 GM_registerMenuCommand('配置设置', configureSettings);
+GM_registerMenuCommand('配置重定向规则', configureSkips);
+GM_registerMenuCommand('恢复默认重定向规则', resetSkips);
 
 async function removeAds() {
   if (!userSettings.blockAds) return;
