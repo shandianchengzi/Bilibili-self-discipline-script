@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         b站自律脚本
 // @namespace    http://tampermonkey.net/
-// @version      0.6.1
+// @version      0.6.2
 // @description  1.除了搜索、视频页、私信页、个人主页、专栏之外的任何页都会被重定向到搜索页；2.视频页去掉相关推荐，并且非自己的视频去掉评论；3.新增配置项支持自行添加重定向的列表。(使用时请打开"设置"-"通用"-"仅在顶层页面（框架）运行"，否则会加载次数过多)
 // @author       shandianchengzi
 // @match        https://*.bilibili.com/*
@@ -14,7 +14,7 @@
 var default_skips = {
   // 默认的不重定向的网站的列表，可以在配置中添加或者删除
   2: ['message.bilibili.com', 'member.bilibili.com', 'account.bilibili.com'], // 这些是个人消息管理的一些域名，我是UP主，所以需要查看这些，所以不禁用这些域名
-  3: ['opus', 'read', '437662663', '3404595'] // opus and read is 专栏不禁用, 我自己的b站和周深的b站不禁用（注：周深的b站是用于测试，我没有办法自己测自己）
+  3: ['opus', 'read', 'list', '437662663', '3404595'] // opus and read is 专栏不禁用, list 是收藏夹的播放列表，我自己的b站和周深的b站不禁用（注：周深的b站是用于测试，我没有办法自己测自己）
 };
 
 var skips = GM_getValue('skips', JSON.parse(JSON.stringify(default_skips)));
@@ -269,17 +269,23 @@ async function mainFunc() {
     console.log('search page');
     return;
   }
-  // 2. for video page,
-  else if (urlArr[3] == 'video') {
+  // 2. for video page, 或者收藏夹 page
+  else if (urlArr[3] == 'video' || urlArr[3] == 'list') {
     console.log('video page');
     // remove related videos and other nouseful things
     if (userSettings.blockRecommendations) {
-        var relatedVideos = document.getElementById('reco_list') || document.getElementsByClassName('recommend-list-v1');
-      // 如果得到的结果是个列表就取第一个，但是如果没有length属性，就不是列表，就不用取第一个
-      if (relatedVideos.length != undefined && relatedVideos.length > 0) {
-          relatedVideos = relatedVideos[0];
+      var relatedVideos = document.getElementById('reco_list') || document.getElementsByClassName('recommend-list-v1') ;
+      if (relatedVideos.length != undefined && relatedVideos.length == 0) {
+        relatedVideos = document.getElementsByClassName('recommend-list-container');
       }
-        if (relatedVideos) relatedVideos.style.visibility = 'hidden';
+      // 如果得到的结果是个列表就取第一个，但是如果没有length属性，就不是列表，就不用取第一个；空列表就不取
+      if (relatedVideos.length != undefined && relatedVideos.length > 0) {
+          relatedVideos[0].style.visibility = 'hidden';
+      } else if (relatedVideos.length== undefined) {
+          relatedVideos.style.visibility = 'hidden';
+      } else {
+          console.log('no related videos in video page, it is strange!');
+      }
     }
     // 2.2 remove ads
     await try_catch_function(removeAds);
