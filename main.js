@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         b站自律脚本
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.6.1
 // @description  1.除了搜索、视频页、私信页、个人主页、专栏之外的任何页都会被重定向到搜索页；2.视频页去掉相关推荐，并且非自己的视频去掉评论；3.新增配置项支持自行添加重定向的列表。(使用时请打开"设置"-"通用"-"仅在顶层页面（框架）运行"，否则会加载次数过多)
 // @author       shandianchengzi
 // @match        https://*.bilibili.com/*
@@ -14,7 +14,7 @@
 var default_skips = {
   // 默认的不重定向的网站的列表，可以在配置中添加或者删除
   2: ['message.bilibili.com', 'member.bilibili.com', 'account.bilibili.com'], // 这些是个人消息管理的一些域名，我是UP主，所以需要查看这些，所以不禁用这些域名
-  3: ['opus', 'read'] // opus and read is 专栏不禁用
+  3: ['opus', 'read', '437662663', '3404595'] // opus and read is 专栏不禁用, 我自己的b站和周深的b站不禁用（注：周深的b站是用于测试，我没有办法自己测自己）
 };
 
 var skips = GM_getValue('skips', JSON.parse(JSON.stringify(default_skips)));
